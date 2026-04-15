@@ -3,15 +3,14 @@ import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } fr
 import { supabase } from '../lib/supabase';
 import { PostCard } from '../components/PostCard';
 import { GroupCard } from '../components/GroupCard';
-import * as FileSystem from 'expo-file-system';
-
-const CACHE_FILE = FileSystem.documentDirectory + 'community_cache.json';
+import { useNetInfo } from '@react-native-community/netinfo';
 
 export default function CommunityScreen() {
   const [posts, setPosts] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
+  const [errorState, setErrorState] = useState(false);
   const [tab, setTab] = useState<'feed' | 'groups'>('feed');
+  const { isConnected } = useNetInfo();
 
   useEffect(() => {
     loadPosts();
@@ -27,37 +26,18 @@ export default function CommunityScreen() {
         .limit(20);
         
       if (error) throw error;
-      
       setPosts(data || []);
-      setIsOffline(false);
-      // Cache for offline
-      await FileSystem.writeAsStringAsync(CACHE_FILE, JSON.stringify(data));
+      setErrorState(false);
     } catch (err) {
-      setIsOffline(true);
-      // Load from cache
-      try {
-        const cached = await FileSystem.readAsStringAsync(CACHE_FILE);
-        setPosts(JSON.parse(cached));
-      } catch (e) {
-        // Fallback mock
-        setPosts([
-          { id: '1', title: 'SIMU Node setup guide for 2G networks', author: 'ang_dev', upvotes: 142, created_at: new Date().toISOString() },
-          { id: '2', title: 'New lightweight game released! Only 0.8MB', author: 'simu_games', upvotes: 89, created_at: new Date().toISOString() },
-        ]);
-      }
+      setErrorState(true);
     } finally {
       setRefreshing(false);
     }
   };
 
   const handleUpvote = (id: string) => {
-    // Optimistic update
+    // Local state upvote only (no RPC call)
     setPosts(posts.map(p => p.id === id ? { ...p, upvotes: p.upvotes + 1 } : p));
-    if (isOffline) {
-      // Queue offline action (implementation omitted for brevity)
-    } else {
-      // supabase.rpc('increment_upvote', { post_id: id })
-    }
   };
 
   const mockGroups = [
@@ -68,9 +48,9 @@ export default function CommunityScreen() {
 
   return (
     <View style={styles.container}>
-      {isOffline && (
+      {isConnected === false && (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>Offline Mode - Showing Cached Content</Text>
+          <Text style={styles.offlineText}>Offline Mode</Text>
         </View>
       )}
       
@@ -84,13 +64,19 @@ export default function CommunityScreen() {
       </View>
 
       {tab === 'feed' ? (
-        <FlatList
-          data={posts}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadPosts} tintColor="#00FFA3" />}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => <PostCard post={item} onUpvote={() => handleUpvote(item.id)} />}
-        />
+        errorState ? (
+          <View style={styles.center}>
+            <Text style={styles.comingSoon}>Coming Soon</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={posts}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadPosts} tintColor="#00FFA3" />}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => <PostCard post={item} onUpvote={() => handleUpvote(item.id)} />}
+          />
+        )
       ) : (
         <FlatList
           data={mockGroups}
@@ -113,4 +99,6 @@ const styles = StyleSheet.create({
   tabText: { color: '#888', fontWeight: 'bold' },
   activeTabText: { color: '#00FFA3' },
   list: { padding: 16 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
+  comingSoon: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
 });
