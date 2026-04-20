@@ -30,7 +30,7 @@ export function GroupCard({ group, onJoin, onPress }: Props) {
              <StarsButton 
                receiverId={group.owner_id} 
                referenceId={group.id} 
-               type="appreciation" 
+               type="donation" 
                amount={50} 
                label="⭐ Donate to Group" 
              />

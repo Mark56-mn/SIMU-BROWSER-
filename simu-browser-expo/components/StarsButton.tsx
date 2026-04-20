@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, ActivityIndicator, Alert, StyleSheet } from 're
 import { sendStars } from '../lib/stars';
 
 interface Props {
-  receiverId: string;
+  receiverId: string | null;
   referenceId?: string;
   type?: 'appreciation' | 'donation';
   amount?: number;
@@ -21,7 +21,7 @@ export function StarsButton({ receiverId, referenceId, type = 'appreciation', am
     if (res?.success) {
       Alert.alert('Success', `Sent ${amount} Stars successfully! 🌟`);
     } else {
-      Alert.alert('Failed', res?.error || 'Could not send stars. Please check your balance.');
+      Alert.alert('Failed', res?.error || 'Could not send stars. Please check your balance or internet connection.');
     }
   };
 

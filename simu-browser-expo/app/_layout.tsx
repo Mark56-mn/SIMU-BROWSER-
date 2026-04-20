@@ -34,6 +34,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
@@ -46,6 +53,13 @@ export default function TabLayout() {
           href: null,
           title: 'Group Chat',
           tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="ar-transfer"
+        options={{
+          href: null,
+          title: 'AR Transfer'
         }}
       />
     </Tabs>

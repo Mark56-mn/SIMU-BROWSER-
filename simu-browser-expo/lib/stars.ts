@@ -1,21 +1,32 @@
 import { supabase } from './supabase';
 
-export const getStarsBalance = async (): Promise<number> => {
+export const getStarsBalance = async (): Promise<{ balance: number, total_received: number }> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return 0;
-    const { data, error } = await supabase.from('profiles').select('stars_balance').eq('id', session.user.id).single();
+    if (!session) return { balance: 0, total_received: 0 };
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('stars_balance, total_stars_received')
+      .eq('id', session.user.id)
+      .single();
     if (error) throw error;
-    return data.stars_balance || 0;
+    return { 
+      balance: data.stars_balance || 0, 
+      total_received: data.total_stars_received || 0 
+    };
   } catch (e) {
     console.error('getStarsBalance err:', e);
-    return 0;
+    return { balance: 0, total_received: 0 };
   }
 };
 
 export const getExchangeRate = async (): Promise<number> => {
   try {
-    const { data, error } = await supabase.from('exchange_rates').select('rate').eq('pair', 'SIMU_STARS').single();
+    const { data, error } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('pair', 'SIMU_STARS')
+      .single();
     if (error) throw error;
     return data.rate || 10;
   } catch (e) {
@@ -24,10 +35,10 @@ export const getExchangeRate = async (): Promise<number> => {
   }
 };
 
-export const sendStars = async (receiverId: string, amount: number, type: string, referenceId?: string) => {
+export const sendStars = async (receiverId: string | null, amount: number, type: string, referenceId?: string) => {
   try {
     const { data, error } = await supabase.rpc('send_stars', {
-      p_receiver_id: receiverId,
+      p_receiver_id: receiverId, // null = ecosystem treasury
       p_amount: amount,
       p_type: type,
       p_reference_id: referenceId || null
@@ -35,7 +46,7 @@ export const sendStars = async (receiverId: string, amount: number, type: string
     if (error) throw error;
     return data; 
   } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: false, error: e.message || 'Network error' };
   }
 };
 
@@ -45,7 +56,7 @@ export const swapSimuToStars = async (amount: number) => {
     if (error) throw error;
     return data;
   } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: false, error: e.message || 'Network error' };
   }
 };
 
@@ -55,6 +66,28 @@ export const swapStarsToSimu = async (amount: number) => {
     if (error) throw error;
     return data;
   } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: false, error: e.message || 'Network error' };
   }
 };
+
+export const deletePost = async (postId: string) => {
+  try {
+    const { error } = await supabase.from('community_posts').delete().eq('id', postId);
+    if (error) throw error;
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Network error' };
+  }
+};
+
+export const updatePost = async (postId: string, title: string, body: string) => {
+  try {
+    // using eq('id') - RLS will enforce author_id == auth.uid()
+    const { error } = await supabase.from('community_posts').update({ title, body: body || null }).eq('id', postId);
+    if (error) throw error;
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Network error' };
+  }
+};
+

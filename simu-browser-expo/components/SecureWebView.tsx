@@ -11,9 +11,25 @@ export function SecureWebView({ url, onClose }: Props) {
   const webViewRef = useRef<WebView>(null);
 
   const injectedJS = `
-    window.simu = { connected: true };
+    // Inject SIMU object
+    window.simu = { connected: true, network: 'testnet' };
+    
+    // Block popups from JavaScript side
+    window.open = function() {
+      console.warn("Popups are blocked by SIMU Browser");
+      return null;
+    };
+    
     true;
   `;
+
+  // Stricter URL whitelisting
+  const isAllowedUrl = (targetUrl: string) => {
+    // Allows https://simu.network or https://*.simu.network (including sub-paths)
+    // Prevents bypasses like https://malicious.com/?q=simu.network
+    const regex = /^https?:\/\/(?:[a-zA-Z0-9-]+\.)*simu\.network(?:\/|$)/i;
+    return regex.test(targetUrl);
+  };
 
   return (
     <View style={styles.container}>
@@ -27,12 +43,13 @@ export function SecureWebView({ url, onClose }: Props) {
         ref={webViewRef}
         source={{ uri: url }}
         injectedJavaScript={injectedJS}
+        injectedJavaScriptBeforeContentLoaded={injectedJS}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         cacheEnabled={true}
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
         setSupportMultipleWindows={false}
-        onShouldStartLoadWithRequest={(request) => request.url.includes('simu.network')}
+        onShouldStartLoadWithRequest={(request) => isAllowedUrl(request.url)}
         style={styles.webview}
       />
     </View>

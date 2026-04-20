@@ -4,8 +4,11 @@ import { supabase } from '../lib/supabase';
 import { PostCard } from '../components/PostCard';
 import { GroupCard } from '../components/GroupCard';
 import { ExchangeModal } from '../components/ExchangeModal';
+import { StarsBalanceBadge } from '../components/StarsBalanceBadge';
+import { EditPostModal } from '../components/EditPostModal';
+import { AuthorProfileModal } from '../components/AuthorProfileModal';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { getStarsBalance, sendStars } from '../lib/stars';
+import { getStarsBalance, sendStars, deletePost } from '../lib/stars';
 import { useRouter } from 'expo-router';
 
 export default function CommunityScreen() {
@@ -16,6 +19,16 @@ export default function CommunityScreen() {
   const [tab, setTab] = useState<'feed' | 'groups'>('feed');
   const [starsBalance, setStarsBalance] = useState(0);
   const [exchangeVisible, setExchangeVisible] = useState(false);
+  
+  // New States for Modals and Data tracking
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingPost, setEditingPost] = useState<any>(null);
+  
+  const [authorModalVisible, setAuthorModalVisible] = useState(false);
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
+
   const { isConnected } = useNetInfo();
   const router = useRouter();
 
@@ -26,8 +39,11 @@ export default function CommunityScreen() {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const balance = await getStarsBalance();
-      setStarsBalance(balance);
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUserId(session?.user?.id || null);
+
+      const stats = await getStarsBalance();
+      setStarsBalance(stats.balance);
 
       const { data, error } = await supabase
         .from('community_posts')
@@ -59,9 +75,26 @@ export default function CommunityScreen() {
     setPosts(posts.map(p => p.id === id ? { ...p, upvotes: p.upvotes + 1 } : p));
   };
 
-  const handleDonateEcosystem = async () => {
-    await sendStars('ecosystem_treasury', 50, 'donation');
-    loadData();
+  const handleDeletePost = async (id: string) => {
+    // Optimistic UI update
+    setPosts(posts.filter(p => p.id !== id));
+    const res = await deletePost(id);
+    if (!res.success) {
+      alert(res.error);
+      loadData(); // Revert on failure
+    }
+  };
+
+  const openEditModal = (post: any) => {
+    setEditingPost(post);
+    setEditModalVisible(true);
+  };
+
+  const openAuthorModal = (authorId: string | undefined) => {
+    if (authorId) {
+      setSelectedAuthorId(authorId);
+      setAuthorModalVisible(true);
+    }
   };
 
   const handleJoinGroup = async (groupId: string) => {
@@ -99,15 +132,12 @@ export default function CommunityScreen() {
       {/* Stars Header */}
       <View style={styles.starsHeader}>
         <View>
-          <Text style={styles.starsTitle}>My Stars Balance</Text>
-          <Text style={styles.starsBalance}>⭐ {starsBalance.toLocaleString()}</Text>
+          <Text style={styles.starsTitle}>My Balance</Text>
+          <StarsBalanceBadge balance={starsBalance} />
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.getStarsBtn} onPress={() => setExchangeVisible(true)}>
             <Text style={styles.getStarsText}>Get Stars</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.donateBtn} onPress={handleDonateEcosystem}>
-            <Text style={styles.donateText}>Donate</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -130,7 +160,16 @@ export default function CommunityScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor="#00FFA3" />}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            renderItem={({ item }) => <PostCard post={item} onUpvote={() => handleUpvote(item.id)} />}
+            renderItem={({ item }) => (
+              <PostCard 
+                post={item} 
+                onUpvote={() => handleUpvote(item.id)} 
+                currentUserId={currentUserId}
+                onEdit={() => openEditModal(item)}
+                onDelete={() => handleDeletePost(item.id)}
+                onAuthorPress={() => openAuthorModal(item.author_id)}
+              />
+            )}
           />
         )
       ) : (
@@ -152,6 +191,19 @@ export default function CommunityScreen() {
         visible={exchangeVisible} 
         onClose={() => setExchangeVisible(false)} 
         onRefresh={loadData} 
+      />
+
+      <EditPostModal 
+        visible={editModalVisible} 
+        post={editingPost} 
+        onClose={() => setEditModalVisible(false)} 
+        onRefresh={loadData} 
+      />
+
+      <AuthorProfileModal 
+        visible={authorModalVisible} 
+        authorId={selectedAuthorId} 
+        onClose={() => setAuthorModalVisible(false)} 
       />
     </View>
   );

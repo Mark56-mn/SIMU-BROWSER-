@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ export default function GroupChatScreen() {
   const [group, setGroup] = useState<any>(null);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -29,7 +30,8 @@ export default function GroupChatScreen() {
     };
   }, [id]);
 
-  const loadData = async () => {
+  const loadData = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
       // Load group details
       const { data: gData } = await supabase.from('groups').select('*').eq('id', id).single();
@@ -41,13 +43,23 @@ export default function GroupChatScreen() {
         .select('*, profiles(username)')
         .eq('group_id', id)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(isRefresh ? 100 : 50); // Fetch more on refresh
       
-      if (mData) setMessages(mData);
+      if (mData) {
+        // Simple distinct merge if refreshing
+        if (isRefresh && messages.length > 0) {
+          const newMap = new Map(mData.map(m => [m.id, m]));
+          messages.forEach(m => newMap.set(m.id, m));
+          setMessages(Array.from(newMap.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        } else {
+          setMessages(mData);
+        }
+      }
     } catch (error) {
       console.log('Error loading group chat:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -60,6 +72,16 @@ export default function GroupChatScreen() {
     const tempText = inputText;
     setInputText('');
 
+    // Mention parsing logic
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [...tempText.matchAll(mentionRegex)].map(m => m[1]);
+
+    if (mentions.length > 0) {
+      // MOCK NOTIFICATION SYSTEM
+      console.log(`Sending simulated notifications to: ${mentions.join(', ')}`);
+      // In a real app we would ping the notifications tables or use expo-notifications wrapper logic
+    }
+
     const { error } = await supabase.from('group_messages').insert({
       group_id: id,
       author_id: session.user.id,
@@ -70,6 +92,20 @@ export default function GroupChatScreen() {
       Alert.alert('Error', 'Could not send message. Ensure you have joined the group.');
       setInputText(tempText);
     }
+  };
+
+  const renderMessageContent = (text: string, isMe: boolean) => {
+    const parts = text.split(/(@\w+)/g);
+    return (
+      <Text style={[styles.msgText, isMe ? styles.myMsgText : styles.theirMsgText]}>
+        {parts.map((part, i) => {
+          if (part.startsWith('@')) {
+            return <Text key={i} style={styles.mentionText}>{part}</Text>;
+          }
+          return part;
+        })}
+      </Text>
+    );
   };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#00FFA3" /></View>;
@@ -88,12 +124,13 @@ export default function GroupChatScreen() {
         inverted
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#00FFA3" />}
         renderItem={({ item }) => {
           const isMe = session?.user?.id === item.author_id;
           return (
             <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.theirMessage]}>
               {!isMe && <Text style={styles.msgAuthor}>{item.profiles?.username || 'Anonymous'}</Text>}
-              <Text style={styles.msgText}>{item.content}</Text>
+              {renderMessageContent(item.content, isMe)}
             </View>
           );
         }}
@@ -129,6 +166,9 @@ const styles = StyleSheet.create({
   theirMessage: { backgroundColor: '#222', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   msgAuthor: { color: '#00FFA3', fontSize: 10, fontWeight: 'bold', marginBottom: 4 },
   msgText: { color: '#FFF', fontSize: 14 },
+  myMsgText: { color: '#000' }, // Dark text for my explicit background
+  theirMsgText: { color: '#FFF' },
+  mentionText: { fontWeight: 'bold', color: '#FFD700', textDecorationLine: 'underline' },
   empty: { color: '#666', textAlign: 'center', marginTop: 50 },
   inputContainer: { flexDirection: 'row', padding: 12, borderTopWidth: 1, borderTopColor: '#333', alignItems: 'center', backgroundColor: '#111' },
   input: { flex: 1, backgroundColor: '#222', color: '#FFF', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, marginRight: 12 },
