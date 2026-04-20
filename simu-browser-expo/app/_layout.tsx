@@ -40,6 +40,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="settings" size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="group/[id]"
+        options={{
+          href: null,
+          title: 'Group Chat',
+          tabBarStyle: { display: 'none' }
+        }}
+      />
     </Tabs>
   );
 }

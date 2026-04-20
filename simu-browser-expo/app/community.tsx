@@ -6,15 +6,18 @@ import { GroupCard } from '../components/GroupCard';
 import { ExchangeModal } from '../components/ExchangeModal';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { getStarsBalance, sendStars } from '../lib/stars';
+import { useRouter } from 'expo-router';
 
 export default function CommunityScreen() {
   const [posts, setPosts] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [errorState, setErrorState] = useState(false);
   const [tab, setTab] = useState<'feed' | 'groups'>('feed');
   const [starsBalance, setStarsBalance] = useState(0);
   const [exchangeVisible, setExchangeVisible] = useState(false);
   const { isConnected } = useNetInfo();
+  const router = useRouter();
 
   useEffect(() => {
     loadData();
@@ -34,8 +37,18 @@ export default function CommunityScreen() {
         
       if (error) throw error;
       setPosts(data || []);
+
+      const { data: gData } = await supabase
+        .from('groups')
+        .select('*')
+        .order('members', { ascending: false })
+        .limit(20);
+      
+      setGroups(gData || []);
       setErrorState(false);
     } catch (err) {
+      console.log('Error Loading Community Data:', err);
+      // Don't show total failure if just the table doesn't exist yet, gracefully use empty lists
       setErrorState(true);
     } finally {
       setRefreshing(false);
@@ -51,7 +64,26 @@ export default function CommunityScreen() {
     loadData();
   };
 
-  const mockGroups = [
+  const handleJoinGroup = async (groupId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert("Please check your settings and ensure you have an active Browser Account or Wallet connected.");
+      return;
+    }
+    
+    const { error } = await supabase.from('group_members').insert({ group_id: groupId, user_id: session.user.id });
+    if (!error) {
+      alert("Joined successfully!");
+      router.push(`/group/${groupId}`);
+    } else {
+      alert("Could not join group or you are already a member.");
+      // Navigate anyway so they can see the chat
+      router.push(`/group/${groupId}`);
+    }
+  };
+
+  // Fallback if no real groups are populated yet during dev
+  const displayGroups = groups.length > 0 ? groups : [
     { id: '1', name: 'SIMU Validators', members: 1240, type: 'Public', description: 'Official group for Ang Node operators.', owner_id: 'mock_owner' },
     { id: '2', name: 'Web3 Africa Reels', members: 850, type: 'Reels', description: 'Short video updates from the ecosystem.', owner_id: 'mock_owner' },
   ];
@@ -103,10 +135,16 @@ export default function CommunityScreen() {
         )
       ) : (
         <FlatList
-          data={mockGroups}
+          data={displayGroups}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <GroupCard group={item} />}
+          renderItem={({ item }) => (
+            <GroupCard 
+              group={item} 
+              onJoin={() => handleJoinGroup(item.id)}
+              onPress={() => router.push(`/group/${item.id}`)}
+            />
+          )}
         />
       )}
 

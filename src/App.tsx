@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Gamepad2, Users, LayoutGrid, WifiOff, ShieldCheck, ChevronRight, PlaySquare, Settings, Wallet, Mail, LogOut, Trash2 } from 'lucide-react';
+import { Globe, Gamepad2, Users, LayoutGrid, WifiOff, ShieldCheck, ChevronRight, PlaySquare, Settings, Wallet, Mail, LogOut, Trash2, MessageSquare, ArrowLeft, Send } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'games' | 'community' | 'dapps' | 'settings' | 'browser'>('games');
@@ -7,6 +7,19 @@ export default function App() {
   const [isSimulatedLogin, setIsSimulatedLogin] = useState(false);
   const [authMethod, setAuthMethod] = useState<'wallet' | 'browser'>('wallet');
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [activeGroupChat, setActiveGroupChat] = useState<any | null>(null);
+  const [chatInput, setChatInput] = useState('');
+  const [simulatedMessages, setSimulatedMessages] = useState([
+    { id: 1, text: "Has anyone set up their Ang node yet?", author: "simu1...88a", isMe: false },
+    { id: 2, text: "Yes, running smoothly on a low-end VPS!", author: "crypto_fan", isMe: false },
+  ]);
+
+  const handleSendChat = () => {
+    if(!isSimulatedLogin) return alert("Log in via Settings to chat!");
+    if(!chatInput.trim()) return;
+    setSimulatedMessages([...simulatedMessages, { id: Date.now(), text: chatInput, author: "You", isMe: true }]);
+    setChatInput('');
+  };
 
   const openDApp = (url: string) => {
     setCurrentUrl(url);
@@ -119,11 +132,15 @@ export default function App() {
                     { id: '3', name: 'Trading & DeFi', members: '3,200', type: 'Public', desc: 'Discuss SIMU tokenomics, DEX strategies, and liquidity.' },
                     { id: '4', name: 'Game Devs Hub', members: '420', type: 'Private', desc: 'Build lightweight games for the SIMU Browser.' },
                   ].map((group) => (
-                    <div key={group.id} className="p-5 bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-neutral-700 transition-colors">
+                    <div 
+                      key={group.id} 
+                      onClick={() => isSimulatedLogin ? setActiveGroupChat(group) : alert('Please log in via Settings')}
+                      className="p-5 bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-emerald-500/50 cursor-pointer transition-colors"
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
                           {group.icon && <group.icon className="w-5 h-5 text-emerald-400" />}
-                          <h3 className="font-bold text-white text-lg">{group.name}</h3>
+                          <h3 className="font-bold text-white text-lg group-hover:text-emerald-400 transition-colors">{group.name}</h3>
                         </div>
                         <span className="px-2 py-1 bg-neutral-800 rounded text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                           {group.type}
@@ -133,7 +150,7 @@ export default function App() {
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-neutral-500 font-medium">{group.members} members</span>
                         <button className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-sm rounded-full transition-colors">
-                          Join Group
+                          Open Chat
                         </button>
                       </div>
                     </div>
@@ -258,6 +275,54 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Group Chat Overlay View */}
+        {activeGroupChat && (
+          <div className="absolute inset-0 flex flex-col bg-neutral-950 z-30">
+            <div className="flex items-center gap-3 p-4 bg-neutral-900 border-b border-neutral-800 shadow-md">
+              <button 
+                onClick={() => setActiveGroupChat(null)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h3 className="font-bold text-white leading-tight">{activeGroupChat.name}</h3>
+                <span className="text-xs text-emerald-400 font-bold">{activeGroupChat.members} members</span>
+              </div>
+            </div>
+            
+            <div className="flex-1 p-5 overflow-y-auto space-y-4">
+               {simulatedMessages.map(msg => (
+                 <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+                   <div className={`max-w-[80%] p-3 rounded-2xl ${msg.isMe ? 'bg-emerald-500 text-neutral-950 rounded-br-sm' : 'bg-neutral-800 text-white rounded-bl-sm'}`}>
+                     {!msg.isMe && <div className="text-[10px] font-bold text-emerald-400 mb-1">{msg.author}</div>}
+                     <div className="text-sm shadow-sm">{msg.text}</div>
+                   </div>
+                 </div>
+               ))}
+            </div>
+
+            <div className="p-4 bg-neutral-900 border-t border-neutral-800 flex items-center gap-3">
+              <input 
+                type="text" 
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
+                placeholder={isSimulatedLogin ? "Say something..." : "Please log in to chat..."}
+                disabled={!isSimulatedLogin}
+                className="flex-1 bg-neutral-950 border border-neutral-800 disabled:opacity-50 disabled:bg-neutral-900 rounded-full px-5 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/50" 
+              />
+              <button 
+                onClick={handleSendChat}
+                disabled={!isSimulatedLogin}
+                className="w-12 h-12 flex items-center justify-center bg-emerald-500 disabled:opacity-50 disabled:bg-neutral-800 text-neutral-950 disabled:text-neutral-500 rounded-full transition-colors shrink-0"
+              >
+                <Send className="w-5 h-5 ml-1" />
+              </button>
+            </div>
           </div>
         )}
 

@@ -2,15 +2,21 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { StarsButton } from './StarsButton';
 
-export function GroupCard({ group }: { group: any }) {
+interface Props {
+  group: any;
+  onJoin?: () => void;
+  onPress?: () => void;
+}
+
+export function GroupCard({ group, onJoin, onPress }: Props) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.header}>
         <View>
           <Text style={styles.name}>{group.name}</Text>
           <Text style={styles.typeText}>{group.type}</Text>
         </View>
-        <TouchableOpacity style={styles.joinBtn}>
+        <TouchableOpacity style={styles.joinBtn} onPress={onJoin}>
           <Text style={styles.joinText}>Join</Text>
         </TouchableOpacity>
       </View>
@@ -18,7 +24,7 @@ export function GroupCard({ group }: { group: any }) {
       <Text style={styles.description}>{group.description}</Text>
       
       <View style={styles.footer}>
-        <Text style={styles.members}>{group.members.toLocaleString()} members</Text>
+        <Text style={styles.members}>{group.members?.toLocaleString() || 0} members</Text>
         <View style={styles.actions}>
           {group.owner_id && (
              <StarsButton 
@@ -31,7 +37,7 @@ export function GroupCard({ group }: { group: any }) {
           )}
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
