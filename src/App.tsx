@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Globe, Gamepad2, Users, LayoutGrid, WifiOff, ShieldCheck, ChevronRight, PlaySquare } from 'lucide-react';
+import { Globe, Gamepad2, Users, LayoutGrid, WifiOff, ShieldCheck, ChevronRight, PlaySquare, Settings, Wallet, Mail, LogOut, Trash2 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'games' | 'community' | 'dapps' | 'browser'>('games');
+  const [activeTab, setActiveTab] = useState<'games' | 'community' | 'dapps' | 'settings' | 'browser'>('games');
   const [communitySubTab, setCommunitySubTab] = useState<'feed' | 'groups'>('feed');
+  const [isSimulatedLogin, setIsSimulatedLogin] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'wallet' | 'browser'>('wallet');
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
 
   const openDApp = (url: string) => {
@@ -178,6 +180,87 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === 'settings' && (
+          <div className="p-5 max-w-3xl mx-auto w-full">
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Settings className="w-6 h-6 text-emerald-400" />
+              Settings & Account
+            </h2>
+
+            {isSimulatedLogin ? (
+              <div className="space-y-6">
+                 <div className="p-5 bg-neutral-900 rounded-2xl border border-emerald-500/30 shadow-lg">
+                   <h3 className="font-bold text-white text-lg mb-1">Account Active</h3>
+                   <p className="text-emerald-400 text-sm mb-4">simu1...x9f (Wallet Connected)</p>
+                   <button onClick={() => setIsSimulatedLogin(false)} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 font-bold text-sm rounded-xl hover:bg-red-500/20 transition-colors">
+                     <LogOut className="w-4 h-4" /> Sign Out
+                   </button>
+                 </div>
+                 <div className="p-5 bg-neutral-900 rounded-2xl border border-neutral-800">
+                   <h3 className="font-bold text-white mb-4">Browser Preferences</h3>
+                   <div className="flex items-center justify-between py-3 border-b border-neutral-800">
+                     <span className="text-neutral-300 text-sm">Offline Cache Size</span>
+                     <span className="text-emerald-400 text-sm font-bold">42.5 MB</span>
+                   </div>
+                   <button className="flex items-center gap-2 px-4 py-2 mt-4 bg-neutral-800 text-neutral-300 font-bold text-sm rounded-xl hover:bg-neutral-700 transition-colors">
+                     <Trash2 className="w-4 h-4" /> Clear Cache
+                   </button>
+                 </div>
+              </div>
+            ) : (
+              <div className="bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden shadow-xl">
+                <div className="flex border-b border-neutral-800">
+                  <button onClick={() => setAuthMethod('wallet')} className={`flex-1 py-4 text-sm font-bold tracking-wide transition-colors ${authMethod === 'wallet' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-neutral-800/20' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/10'}`}>
+                    SIMU WALLET
+                  </button>
+                  <button onClick={() => setAuthMethod('browser')} className={`flex-1 py-4 text-sm font-bold tracking-wide transition-colors ${authMethod === 'browser' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-neutral-800/20' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/10'}`}>
+                    BROWSER ACCOUNT
+                  </button>
+                </div>
+                <div className="p-6">
+                  {authMethod === 'wallet' ? (
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+                        <Wallet className="w-8 h-8 text-emerald-400" />
+                      </div>
+                      <h3 className="font-bold text-white text-lg mb-2">Connect Your Wallet</h3>
+                      <p className="text-neutral-400 text-sm mb-6 max-w-sm">Use the exact same details as your SIMU Wallet, or connect seamlessly via the Testnet App using secure deep linking.</p>
+                      <button onClick={() => setIsSimulatedLogin(true)} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl transition-colors mb-4">
+                        Connect via SIMU App
+                      </button>
+                      <div className="relative w-full text-center my-4">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-neutral-800"></div></div>
+                        <span className="relative px-3 bg-neutral-900 text-xs text-neutral-500 font-bold tracking-widest">OR ENTER SEED</span>
+                      </div>
+                      <input type="password" placeholder="12-word seed phrase" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm mb-4 focus:outline-none focus:border-emerald-500/50" />
+                      <button onClick={() => setIsSimulatedLogin(true)} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition-colors">
+                        Import Wallet Payload
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-3 mb-6 flex-col">
+                        <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center">
+                          <Mail className="w-8 h-8 text-emerald-400" />
+                        </div>
+                        <div className="text-center">
+                           <h3 className="font-bold text-white text-lg">Browser Account</h3>
+                           <p className="text-neutral-400 text-xs mt-1">Create an isolated account just for community features.</p>
+                        </div>
+                      </div>
+                      <input type="email" placeholder="Email address" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm mb-3 focus:outline-none focus:border-emerald-500/50" />
+                      <input type="password" placeholder="Password" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white text-sm mb-6 focus:outline-none focus:border-emerald-500/50" />
+                      <button onClick={() => setIsSimulatedLogin(true)} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl transition-colors mb-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                        Sign In / Create Account
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'browser' && currentUrl && (
           <div className="absolute inset-0 flex flex-col bg-black z-20">
             <div className="flex items-center gap-3 p-3 bg-neutral-900 border-b border-neutral-800">
@@ -230,6 +313,13 @@ export default function App() {
         >
           <LayoutGrid className="w-6 h-6" />
           <span className="text-[10px] font-bold uppercase tracking-widest">dApps</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`flex-1 flex flex-col items-center justify-center py-3.5 gap-1.5 transition-colors ${activeTab === 'settings' ? 'text-emerald-400' : 'text-neutral-500 hover:text-neutral-300'}`}
+        >
+          <Settings className="w-6 h-6" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">Settings</span>
         </button>
       </nav>
     </div>
