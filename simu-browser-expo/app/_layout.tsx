@@ -62,6 +62,14 @@ export default function TabLayout() {
           title: 'AR Transfer'
         }}
       />
+      <Tabs.Screen
+        name="games/GamePlayer"
+        options={{
+          href: null,
+          title: 'SIMU Game',
+          tabBarStyle: { display: 'none' } // Hide tab bar during game
+        }}
+      />
     </Tabs>
   );
 }

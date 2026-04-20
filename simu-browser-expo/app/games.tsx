@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { GameCard } from '../components/GameCard';
 import { SecureWebView } from '../components/SecureWebView';
 import { useNetInfo } from '@react-native-community/netinfo';
+import { useRouter } from 'expo-router';
 
 export default function GamesScreen() {
   const [games, setGames] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export default function GamesScreen() {
   const [errorState, setErrorState] = useState(false);
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const { isConnected } = useNetInfo();
+  const router = useRouter();
 
   useEffect(() => {
     fetchGames();
@@ -22,9 +24,21 @@ export default function GamesScreen() {
       if (error) throw error;
       setGames(data || []);
     } catch (err) {
-      setErrorState(true);
+      setGames([
+        { id: 'math_engine', name: 'SIMU Math (Offline)', url: 'NATIVE_ENGINE:simu-math', size_mb: 0.2, category: 'education' }
+      ]);
+      setErrorState(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLaunch = (url: string) => {
+    if (url.startsWith('NATIVE_ENGINE:')) {
+      const gameId = url.split(':')[1];
+      router.push(`/games/GamePlayer?id=${gameId}`);
+    } else {
+      setActiveUrl(url);
     }
   };
 
@@ -52,7 +66,7 @@ export default function GamesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.grid}
           renderItem={({ item }) => (
-            <GameCard game={item} onLaunch={() => setActiveUrl(item.url)} />
+            <GameCard game={item} onLaunch={() => handleLaunch(item.url)} />
           )}
         />
       )}
