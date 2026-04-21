@@ -30,7 +30,15 @@ export default function GamesScreen() {
     try {
       const { data, error } = await supabase.from('games_registry').select('*');
       if (error) throw error;
-      setGames([...offlineGames, ...(data || [])]);
+      
+      // Filter out remote placeholders so they don't duplicate/override our native engine modules
+      const remoteGames = (data || []).filter(remote => {
+        const isDuplicate = offlineGames.some(o => o.name === remote.name);
+        const isPlaceholder = remote.url.includes('games.simu.network');
+        return !isDuplicate && !isPlaceholder;
+      });
+
+      setGames([...offlineGames, ...remoteGames]);
     } catch (err) {
       setGames(offlineGames);
       setErrorState(false);
@@ -40,6 +48,11 @@ export default function GamesScreen() {
   };
 
   const handleLaunch = (url: string) => {
+    // Failsafe intercept for old placeholder URLs
+    if (url.includes('games.simu.network/runner')) url = 'NATIVE_ENGINE:simu-runner-online';
+    if (url.includes('games.simu.network/puzzle')) url = 'NATIVE_ENGINE:crypto-puzzle';
+    if (url.includes('games.simu.network/chess')) url = 'NATIVE_ENGINE:simu-chess';
+
     if (url.startsWith('NATIVE_ENGINE:')) {
       const gameId = url.split(':')[1];
       router.push(`/games/GamePlayer?id=${gameId}`);
