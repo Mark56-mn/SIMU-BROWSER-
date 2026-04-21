@@ -19,14 +19,20 @@ export default function GamesScreen() {
   }, []);
 
   const fetchGames = async () => {
+    const offlineGames = [
+      { id: 'math_engine', name: 'SIMU Math', url: 'NATIVE_ENGINE:simu-math', size_mb: 0.2, category: 'education' },
+      { id: 'simu_runner', name: 'SIMU Runner', url: 'NATIVE_ENGINE:simu-runner-online', size_mb: 0.1, category: 'action' },
+      { id: 'crypto_puzzle', name: 'Crypto Puzzle', url: 'NATIVE_ENGINE:crypto-puzzle', size_mb: 0.3, category: 'logic' },
+      { id: 'simu_chess', name: 'SIMU Chess', url: 'NATIVE_ENGINE:simu-chess', size_mb: 0.5, category: 'board' },
+      { id: 'token_dash', name: 'Token Dash', url: 'NATIVE_ENGINE:token-dash', size_mb: 0.2, category: 'action' },
+    ];
+
     try {
       const { data, error } = await supabase.from('games_registry').select('*');
       if (error) throw error;
-      setGames(data || []);
+      setGames([...offlineGames, ...(data || [])]);
     } catch (err) {
-      setGames([
-        { id: 'math_engine', name: 'SIMU Math (Offline)', url: 'NATIVE_ENGINE:simu-math', size_mb: 0.2, category: 'education' }
-      ]);
+      setGames(offlineGames);
       setErrorState(false);
     } finally {
       setLoading(false);

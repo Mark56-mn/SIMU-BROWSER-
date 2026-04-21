@@ -5,6 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { GameEngine } from '../../lib/gameEngine';
 import { GameProgress } from '../../components/GameProgress';
+import { CommunityPuzzle } from '../../components/CommunityPuzzle';
+import { MarketDataScanner } from '../../components/MarketDataScanner';
+import { MultiplayerRace } from '../../components/MultiplayerRace';
 
 export default function GamePlayer() {
   const { id } = useLocalSearchParams();
@@ -67,6 +70,61 @@ export default function GamePlayer() {
   // Check offline blocking
   const isBlockedOffline = !isConnected && level && !level.offline;
 
+  const handleCustomComplete = async () => {
+    if (!engine || !level) return;
+    const res = await engine.completeLevel(!!isConnected);
+    
+    if (res.isComplete) {
+      Alert.alert('Game Complete!', 'You have completed all levels in this module.', [
+        { text: 'Awesome', onPress: () => router.back() }
+      ]);
+    } else {
+      if (res.rewarded) {
+         Alert.alert('Challenge Complete!', `You earned ${res.amount} Stars!`);
+      } else {
+         Alert.alert('Challenge Complete!', 'Rewards synced to network.');
+      }
+      setLevel(engine.getCurrentLevel());
+    }
+  };
+
+  const renderGameContent = () => {
+    if (level.data.component === 'CommunityPuzzle') {
+      return <CommunityPuzzle isConnected={isConnected} onComplete={handleCustomComplete} />;
+    }
+    if (level.data.component === 'MarketDataScanner') {
+      return <MarketDataScanner isConnected={isConnected} onComplete={handleCustomComplete} />;
+    }
+    if (level.data.component === 'MultiplayerRace') {
+      return <MultiplayerRace isConnected={isConnected} onComplete={handleCustomComplete} />;
+    }
+
+    return (
+      <>
+        <Text style={styles.levelTitle}>Level {engine.currentLevelIndex + 1}</Text>
+        <Text style={styles.questionText}>{level.data.question}</Text>
+        
+        <TextInput 
+          style={styles.input}
+          placeholder="Your answer"
+          placeholderTextColor="#666"
+          value={input}
+          onChangeText={(val) => { setInput(val); setErrorMsg(''); }}
+          onSubmitEditing={handleSubmit}
+          autoCapitalize="none"
+        />
+        
+        {!!errorMsg && <Text style={styles.errorFeedback}>{errorMsg}</Text>}
+
+        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+          <Text style={styles.submitText}>Submit Answer</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.rewardHint}>Reward: {level.data.rewardAmount} SIMU Stars</Text>
+      </>
+    );
+  };
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
       {/* Header */}
@@ -90,28 +148,7 @@ export default function GamePlayer() {
                 <Text style={styles.blockedSub}>Please reconnect to continue playing and earning rewards.</Text>
               </View>
             ) : (
-              <>
-                <Text style={styles.levelTitle}>Level {engine.currentLevelIndex + 1}</Text>
-                <Text style={styles.questionText}>{level.data.question}</Text>
-                
-                <TextInput 
-                  style={styles.input}
-                  placeholder="Your answer"
-                  placeholderTextColor="#666"
-                  value={input}
-                  onChangeText={(val) => { setInput(val); setErrorMsg(''); }}
-                  onSubmitEditing={handleSubmit}
-                  autoCapitalize="none"
-                />
-                
-                {!!errorMsg && <Text style={styles.errorFeedback}>{errorMsg}</Text>}
-
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-                  <Text style={styles.submitText}>Submit Answer</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.rewardHint}>Reward: {level.data.rewardAmount} SIMU Stars</Text>
-              </>
+              renderGameContent()
             )}
           </View>
         ) : (

@@ -2,6 +2,8 @@ export interface LevelData {
   question: string;
   solution: string;
   rewardAmount: number;
+  simuReward?: number;
+  component?: 'CommunityPuzzle' | 'MarketDataScanner' | 'MultiplayerRace';
 }
 
 export interface GameLevel {
@@ -17,8 +19,17 @@ export interface GameModule {
   levels: GameLevel[];
 }
 
+import { simuRunnerOnline } from './games/simu-runner-online';
+import { cryptoPuzzle } from './games/crypto-puzzle';
+import { simuChess } from './games/simu-chess';
+import { tokenDash } from './games/token-dash';
+
 // Minimal JSON registry acting as our lightweight game cache/DB
 const MOCK_GAMES: GameModule[] = [
+  simuRunnerOnline,
+  cryptoPuzzle,
+  simuChess,
+  tokenDash,
   {
     id: 'simu-math',
     name: 'SIMU Validator Math',

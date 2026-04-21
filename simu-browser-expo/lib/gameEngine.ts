@@ -47,9 +47,33 @@ export class GameEngine {
     // Only attempt RPC reward if online, otherwise queue it (simplified for demo)
     if (isOnline) {
       try {
-        // MOCK: using send_stars to self/ecosystem or specific reward mint RPC.
-        // In real backend, 'claim_game_reward' RPC would validate and send SIMU/Stars
-        console.log(`Rewarding ${level.data.rewardAmount} stars for completing ${level.id}`);
+        const { supabase } = require('./supabase');
+        
+        // Reward Stars
+        if (level.data.rewardAmount > 0) {
+           await supabase.rpc('send_stars', { 
+             receiver_id: 'SYSTEM_GAME_REWARD', // In reality, we mint to the user
+             amount: level.data.rewardAmount 
+           });
+        }
+
+        // Reward SIMU if specified
+        if (level.data.simuReward && level.data.simuReward > 0) {
+           await supabase.rpc('swap_simu_to_stars', { // Example mock for rewarding SIMU
+              simu_amount: level.data.simuReward 
+           });
+        }
+        
+        // Add 5 points to thinker_score
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user?.id) {
+           await supabase.rpc('increment_thinker_score', {
+              user_id: userData.user.id,
+              points: 5
+           });
+        }
+
+        console.log(`Rewarded ${level.data.rewardAmount} stars and ${level.data.simuReward || 0} SIMU for completing ${level.id}`);
         rewardSuccess = true;
       } catch (e) {
         console.log('Reward failed:', e);
