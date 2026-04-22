@@ -70,6 +70,32 @@ export const swapStarsToSimu = async (amount: number) => {
   }
 };
 
+export const donateToTreasury = async (amount: number) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return { success: false, error: 'Not authenticated' };
+
+    const { error } = await supabase.rpc('donate_to_treasury', {
+      amount,
+      user_id: session.user.id
+    });
+    
+    if (error) throw error;
+
+    // Show badge / update profile locally or in DB
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ treasury_builder: true })
+      .eq('id', session.user.id);
+      
+    if (profileError) console.error('Error updating treasury_builder:', profileError);
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Network error' };
+  }
+};
+
 export const deletePost = async (postId: string) => {
   try {
     const { error } = await supabase.from('community_posts').delete().eq('id', postId);
