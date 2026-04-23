@@ -8,6 +8,7 @@ import { GameProgress } from '../../components/GameProgress';
 import { CommunityPuzzle } from '../../components/CommunityPuzzle';
 import { MarketDataScanner } from '../../components/MarketDataScanner';
 import { MultiplayerRace } from '../../components/MultiplayerRace';
+import { WarriorFight } from '../../components/WarriorFight';
 
 export default function GamePlayer() {
   const { id } = useLocalSearchParams();
@@ -89,6 +90,9 @@ export default function GamePlayer() {
   };
 
   const renderGameContent = () => {
+    if (level.data.component === 'WarriorFight') {
+      return <WarriorFight isConnected={isConnected} onComplete={handleCustomComplete} levelData={level.data} />;
+    }
     if (level.data.component === 'CommunityPuzzle') {
       return <CommunityPuzzle isConnected={isConnected} onComplete={handleCustomComplete} />;
     }

@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Globe, Gamepad2, Users, LayoutGrid, WifiOff, ShieldCheck, ChevronRight, PlaySquare, Settings, Wallet, Mail, LogOut, Trash2, MessageSquare, ArrowLeft, Send } from 'lucide-react';
+import { WarriorFight } from './components/WarriorFight';
+import { supabase } from './lib/supabase';
+import { encryptMessage, decryptMessage } from './lib/encryption';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'games' | 'community' | 'dapps' | 'settings' | 'browser'>('games');
@@ -9,16 +12,81 @@ export default function App() {
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
   const [activeGroupChat, setActiveGroupChat] = useState<any | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [simulatedMessages, setSimulatedMessages] = useState([
-    { id: 1, text: "Has anyone set up their Ang node yet?", author: "simu1...88a", isMe: false },
-    { id: 2, text: "Yes, running smoothly on a low-end VPS!", author: "crypto_fan", isMe: false },
-  ]);
+  const [groupMessages, setGroupMessages] = useState<any[]>([]);
 
-  const handleSendChat = () => {
+  useEffect(() => {
+    if (activeGroupChat) {
+      fetchMessages(activeGroupChat.id);
+      
+      // Real-time subscription placeholder
+      const channel = supabase
+        .channel('public:group_messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages', filter: `group_id=eq.${activeGroupChat.id}` }, payload => {
+            const raw = payload.new;
+            const decryptedContent = decryptMessage(raw.content_encrypted, raw.iv);
+            setGroupMessages(prev => [...prev, {
+              id: raw.id,
+              text: decryptedContent,
+              author: raw.author_name,
+              isMe: raw.author_id === 'local-user-id'
+            }]);
+        })
+        .subscribe();
+        
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [activeGroupChat]);
+
+  const fetchMessages = async (groupId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('group_messages')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+        
+      if (error) throw error;
+      
+      const parsed = data.map(raw => ({
+        id: raw.id,
+        text: decryptMessage(raw.content_encrypted, raw.iv),
+        author: raw.author_name,
+        isMe: raw.author_id === 'local-user-id' // Using a placeholder static local ID
+      }));
+      setGroupMessages(parsed);
+    } catch (err) {
+      // Fallback for demo when DB is just a placeholder
+      setGroupMessages([
+        { id: 1, text: "Has anyone set up their Ang node yet? (E2E Encrypted)", author: "simu1...88a", isMe: false },
+        { id: 2, text: "Yes, running smoothly on a low-end VPS!", author: "crypto_fan", isMe: false },
+      ]);
+    }
+  };
+
+  const handleSendChat = async () => {
     if(!isSimulatedLogin) return alert("Log in via Settings to chat!");
-    if(!chatInput.trim()) return;
-    setSimulatedMessages([...simulatedMessages, { id: Date.now(), text: chatInput, author: "You", isMe: true }]);
+    if(!chatInput.trim() || !activeGroupChat) return;
+    
+    // Add to UI optimistically
+    const newMsg = { id: Date.now(), text: chatInput, author: "You", isMe: true };
+    setGroupMessages(prev => [...prev, newMsg]);
+    const textToSend = chatInput;
     setChatInput('');
+    
+    // Encrypt and send
+    try {
+      const { content, iv } = encryptMessage(textToSend);
+      await supabase.from('group_messages').insert([{
+        group_id: activeGroupChat.id,
+        author_id: 'local-user-id',
+        author_name: 'You',
+        content_encrypted: content,
+        iv: iv
+      }]);
+    } catch(err) {
+      console.warn("Failed to send encrypted message to db (demo mode active)");
+    }
   };
 
   const openDApp = (url: string) => {
@@ -60,6 +128,7 @@ export default function App() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {[
+                { id: '0', name: 'African Warrior', url: 'https://games.simu.network/warrior', size: '200 KB', category: 'Action', cached: true },
                 { id: '1', name: 'SIMU Runner', url: 'https://games.simu.network/runner', size: '1.2 MB', category: 'Action', cached: true },
                 { id: '2', name: 'Crypto Puzzle', url: 'https://games.simu.network/puzzle', size: '0.8 MB', category: 'Logic', cached: false },
                 { id: '3', name: 'Ang Nodes Tycoon', url: 'https://games.simu.network/tycoon', size: '2.4 MB', category: 'Strategy', cached: true },
@@ -295,7 +364,7 @@ export default function App() {
             </div>
             
             <div className="flex-1 p-5 overflow-y-auto space-y-4">
-               {simulatedMessages.map(msg => (
+               {groupMessages.map(msg => (
                  <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
                    <div className={`max-w-[80%] p-3 rounded-2xl ${msg.isMe ? 'bg-emerald-500 text-neutral-950 rounded-br-sm' : 'bg-neutral-800 text-white rounded-bl-sm'}`}>
                      {!msg.isMe && <div className="text-[10px] font-bold text-emerald-400 mb-1">{msg.author}</div>}
@@ -340,18 +409,25 @@ export default function App() {
                 {currentUrl}
               </div>
             </div>
-            <div className="flex-1 flex items-center justify-center text-neutral-500 flex-col gap-5 bg-[#050505]">
-              <div className="w-20 h-20 rounded-2xl bg-neutral-900 flex items-center justify-center border border-neutral-800 shadow-2xl">
-                <Globe className="w-10 h-10 text-emerald-400/50" />
+            
+            {currentUrl === 'https://games.simu.network/warrior' ? (
+              <div className="flex-1 overflow-hidden p-2 sm:p-5">
+                <WarriorFight onComplete={() => { alert('Victory! You earned 10 Stars.'); setActiveTab('games'); }} />
               </div>
-              <div className="text-center space-y-2">
-                <p className="font-bold text-white text-lg">Secure WebView</p>
-                <p className="text-sm max-w-sm text-neutral-400 leading-relaxed">
-                  Sandbox active. Navigation restricted to <span className="text-emerald-400 font-mono text-xs">*.simu.network</span>.
-                  <br/>Wallet object injected successfully.
-                </p>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-neutral-500 flex-col gap-5 bg-[#050505]">
+                <div className="w-20 h-20 rounded-2xl bg-neutral-900 flex items-center justify-center border border-neutral-800 shadow-2xl">
+                  <Globe className="w-10 h-10 text-emerald-400/50" />
+                </div>
+                <div className="text-center space-y-2">
+                  <p className="font-bold text-white text-lg">Secure WebView</p>
+                  <p className="text-sm max-w-sm text-neutral-400 leading-relaxed">
+                    Sandbox active. Navigation restricted to <span className="text-emerald-400 font-mono text-xs">*.simu.network</span>.
+                    <br/>Wallet object injected successfully.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </main>
