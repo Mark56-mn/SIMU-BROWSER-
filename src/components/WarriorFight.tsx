@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Sword, ChevronRight, Activity, Crosshair, Minus } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { TribeSelector } from './TribeSelector';
 import { ChallengeBanner } from './ChallengeBanner';
 import { GameEconomy } from '../lib/gameEconomy';
@@ -13,6 +14,8 @@ export function WarriorFight({ onComplete }: Props) {
   const [stars, setStars] = useState(0);
   const [selectedTribe, setSelectedTribe] = useState<Tribe | null>(null);
   const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
+  const [isCelebrating, setIsCelebrating] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{reward: number, flawless: boolean}>({reward: 0, flawless: false});
   
   const [playerHp, setPlayerHp] = useState(100);
   const [enemyHp, setEnemyHp] = useState(100);
@@ -25,7 +28,7 @@ export function WarriorFight({ onComplete }: Props) {
 
   // AI enemy logic
   useEffect(() => {
-    if (!selectedTribe || enemyHp <= 0 || playerHp <= 0) return;
+    if (!selectedTribe || enemyHp <= 0 || playerHp <= 0 || isCelebrating) return;
     
     const attackSpeed = 1500 / currentLevel.difficulty;
     const timer = setInterval(() => {
@@ -35,10 +38,10 @@ export function WarriorFight({ onComplete }: Props) {
     }, attackSpeed);
     
     return () => clearInterval(timer);
-  }, [enemyHp, playerHp, selectedTribe, currentLevelIdx]);
+  }, [enemyHp, playerHp, selectedTribe, currentLevelIdx, isCelebrating]);
 
   useEffect(() => {
-    if (enemyHp <= 0 && selectedTribe) {
+    if (enemyHp <= 0 && selectedTribe && !isCelebrating) {
       handleVictory();
     } else if (playerHp <= 0) {
       alert('Defeated. The ancestors urge you to try again.');
@@ -53,16 +56,21 @@ export function WarriorFight({ onComplete }: Props) {
     await GameEconomy.rewardStars(reward, `Beat ${currentLevel.name}`);
     setStars(s => s + reward);
     
-    alert(`Victory! +${reward} Stars${isFlawless ? ' (Flawless Bonus)' : ''}`);
+    setCelebrationData({ reward, flawless: isFlawless });
+    setIsCelebrating(true);
     
-    if (currentLevelIdx < LEVELS.length - 1) {
-      setCurrentLevelIdx(idx => idx + 1);
-      resetFight();
-    } else {
-      await GameEconomy.shareVictory(`I just unified the tribes in African Warrior as a ${selectedTribe?.name} champion!`);
-      alert("Campaign Complete! Shared to Community.");
-      onComplete();
-    }
+    setTimeout(async () => {
+      setIsCelebrating(false);
+      
+      if (currentLevelIdx < LEVELS.length - 1) {
+        setCurrentLevelIdx(idx => idx + 1);
+        resetFight();
+      } else {
+        await GameEconomy.shareVictory(`I just unified the tribes in African Warrior as a ${selectedTribe?.name} champion!`);
+        alert("Campaign Complete! Shared to Community.");
+        onComplete();
+      }
+    }, 3000);
   };
 
   const resetFight = () => {
@@ -154,6 +162,36 @@ export function WarriorFight({ onComplete }: Props) {
 
   return (
     <div className="flex flex-col h-full bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden relative">
+      <AnimatePresence>
+        {isCelebrating && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-neutral-950/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.5, y: 50, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", bounce: 0.5 }}
+              className="bg-neutral-900 border border-neutral-700 p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-[80%]"
+            >
+              <div className="text-4xl mb-4">🏆</div>
+              <h2 className="text-3xl font-bold text-white mb-2 text-center">Victory!</h2>
+              {celebrationData.flawless && (
+                <span className="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
+                  Flawless Flawless Bonus
+                </span>
+              )}
+              <div className="text-emerald-400 font-mono text-xl font-bold">
+                +{celebrationData.reward} Stars
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <ChallengeBanner stars={stars} />
       
       <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundColor: currentLevel.themeColor }} />
@@ -165,7 +203,7 @@ export function WarriorFight({ onComplete }: Props) {
         <h2 className="text-2xl font-bold text-white mt-2">{currentLevel.name}</h2>
       </div>
 
-      <div className="flex-1 flex justify-between items-end relative border-b-8 border-neutral-800 pb-4 mb-4 mt-8 px-4 sm:px-12">
+      <div className="flex-1 min-h-0 flex justify-between items-end relative border-b-8 border-neutral-800 pb-4 mb-4 mt-8 px-4 sm:px-12">
         {/* Player Left */}
         <div className="flex flex-col items-center z-10 w-1/3">
            <span className="text-white text-xs font-bold mb-2">You ({selectedTribe.name}): {Math.ceil(playerHp)}</span>
@@ -186,7 +224,7 @@ export function WarriorFight({ onComplete }: Props) {
       </div>
 
       {/* UI Controls */}
-      <div className="bg-neutral-950 p-4 z-10 border-t border-neutral-800">
+      <div className="bg-neutral-950 p-4 z-10 border-t border-neutral-800 shrink-0">
         <div className="text-center mb-4">
            <span className="font-mono font-bold text-lg" style={{ color: selectedTribe.color, textShadow: `0 0 10px ${selectedTribe.color}50` }}>
              COMBO x{combo}
